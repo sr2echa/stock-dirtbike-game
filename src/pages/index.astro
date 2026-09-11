@@ -1,0 +1,732 @@
+---
+title: "WALL STREET MOTO // STOCK CHART DIRTBIKE GAME"
+---
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WALL STREET MOTO // STOCK CHART DIRTBIKE</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --terminal-green: #00ff66;
+            --market-red: #ff3333;
+            --market-green: #00ff66;
+            --border-green: #00cc55;
+            --dim-green: #004418;
+            --dark-gray: #111111;
+            --panel-bg: #080c08;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--terminal-green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* CRT Scanlines */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 999;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        header {
+            border-bottom: 2px solid var(--border-green);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--dark-gray);
+        }
+
+        .logo {
+            font-family: 'VT323', monospace;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            color: var(--terminal-green);
+            text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+        }
+
+        .stats-ticker {
+            font-size: 0.9rem;
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-item span {
+            color: #fff;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 60px);
+        }
+
+        /* Sidebar Selector */
+        .sidebar {
+            width: 320px;
+            border-right: 2px solid var(--border-green);
+            background: var(--panel-bg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-family: 'VT323', monospace;
+            font-size: 1.4rem;
+            border-bottom: 1px dashed var(--border-green);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .ticker-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input, button {
+            background: var(--bg-color);
+            border: 1px solid var(--border-green);
+            color: var(--terminal-green);
+            font-family: 'Share Tech Mono', monospace;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input {
+            flex: 1;
+        }
+
+        input:focus {
+            box-shadow: 0 0 8px rgba(0, 255, 102, 0.4);
+        }
+
+        button {
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--terminal-green);
+            color: #000;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .preset-btn {
+            background: var(--dark-gray);
+            border: 1px solid var(--border-green);
+            padding: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .preset-btn:hover {
+            background: var(--dim-green);
+            color: #fff;
+        }
+
+        .game-info {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            border: 1px solid var(--dim-green);
+            padding: 10px;
+            background: #030803;
+        }
+
+        /* Main Game View */
+        .main-game {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #020402;
+        }
+
+        .hud-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--border-green);
+            padding: 10px 15px;
+            font-family: 'VT323', monospace;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.1);
+        }
+
+        .market-badge {
+            font-size: 1rem;
+            padding: 2px 6px;
+            background: var(--dim-green);
+            color: #fff;
+            margin-left: 10px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #030503;
+        }
+
+        /* Splash / Loading / Game Over Modal */
+        .modal {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(2, 5, 2, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .modal h1 {
+            font-family: 'VT323', monospace;
+            font-size: 4rem;
+            color: var(--terminal-green);
+            text-shadow: 0 0 20px var(--terminal-green);
+            margin-bottom: 10px;
+        }
+
+        .modal p {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin-bottom: 30px;
+            color: #aaccbb;
+        }
+
+        .big-btn {
+            font-family: 'VT323', monospace;
+            font-size: 2rem;
+            padding: 12px 40px;
+            background: var(--terminal-green);
+            color: #000;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
+        }
+
+        .big-btn:hover {
+            background: #fff;
+            box-shadow: 0 0 30px #fff;
+        }
+
+        .controls-guide {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #779988;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .red-text { color: var(--market-red) !important; }
+        .green-text { color: var(--market-green) !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">WALL STREET MOTO // STOCK CHART RIDER v1.0</div>
+    <div class="stats-ticker">
+        <div class="stat-item">MARKET STATUS: <span class="green-text">LIVE BULL RUN</span></div>
+        <div class="stat-item">SYS: <span id="sys-status">READY</span></div>
+    </div>
+</header>
+
+<div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="section-title">> SELECT ASSET</div>
+        <div class="ticker-input-group">
+            <input type="text" id="ticker-input" value="TSLA" placeholder="e.g. AAPL, BTC, SPY">
+            <button id="load-ticker-btn">LOAD</button>
+        </div>
+
+        <div class="section-title">> QUICK TICKERS</div>
+        <div class="preset-grid">
+            <button class="preset-btn" data-ticker="TSLA">TSLA (Tesla)</button>
+            <button class="preset-btn" data-ticker="BTC-USD">BTC (Bitcoin)</button>
+            <button class="preset-btn" data-ticker="AAPL">AAPL (Apple)</button>
+            <button class="preset-btn" data-ticker="NVDA">NVDA (Nvidia)</button>
+            <button class="preset-btn" data-ticker="GME">GME (GameStop)</button>
+            <button class="preset-btn" data-ticker="SPY">SPY (S&P 500)</button>
+        </div>
+
+        <div class="section-title">> TELEMETRY</div>
+        <div class="game-info">
+            <p><strong>CHART TERRAIN:</strong> Real closing prices mapped to Y-axis terrain elevations.</p>
+            <p style="margin-top: 8px;"><strong>OBJECTIVE:</strong> Ride the volatility to the present day without flipping your dirtbike!</p>
+            <p style="margin-top: 8px;"><strong>CONTROLS:</strong></p>
+            <p>[W] or [UP] - Accelerate</p>
+            <p>[S] or [DOWN] - Brake / Reverse</p>
+            <p>[A] or [LEFT] - Tilt Backward</p>
+            <p>[D] or [RIGHT] - Tilt Forward</p>
+        </div>
+    </div>
+
+    <!-- Main Game -->
+    <div class="main-game">
+        <div class="hud-overlay">
+            <div class="hud-box" id="hud-ticker">ASSET: TSLA <span class="market-badge" id="hud-change">+14.2%</span></div>
+            <div class="hud-box" id="hud-score">DIST: 0m</div>
+            <div class="hud-box" id="hud-speed">SPEED: 0 MPH</div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Splash Modal -->
+        <div class="modal" id="start-modal">
+            <h1>WALL STREET MOTO</h1>
+            <p>Ride your favorite stock or crypto chart as an extreme arcade dirtbike terrain! Every price swing is a jump, every crash is a market correction.</p>
+            <button class="big-btn" id="start-game-btn">IGNITE ENGINE</button>
+            <div class="controls-guide">Use W/A/S/D or Arrow Keys to Drive & Balance</div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div class="modal hidden" id="gameover-modal">
+            <h1 class="red-text" id="go-title">MARKET CRASH!</h1>
+            <p id="go-message">Your dirtbike flipped during a bearish dip. Final Distance: 0m</p>
+            <button class="big-btn" id="restart-game-btn">BUY THE DIP (RESTART)</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Canvas setup
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Game state
+    let gameState = 'START'; // START, PLAYING, GAMEOVER, WIN
+    let currentTicker = 'TSLA';
+    let chartData = [];
+    let terrainPoints = [];
+    let distance = 0;
+    let maxDistance = 1000;
+
+    // Dirtbike Physics State
+    let bike = {
+        x: 100,
+        y: 200,
+        vx: 0,
+        vy: 0,
+        angle: 0,
+        vAngle: 0,
+        wheelBase: 50,
+        radius: 14,
+        enginePower: 0.45,
+        braking: 0.2,
+        gravity: 0.35,
+        friction: 0.98,
+        airResistance: 0.99
+    };
+
+    // Input state
+    const keys = { up: false, down: false, left: false, right: false };
+    window.addEventListener('keydown', e => {
+        if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = true;
+        if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = true;
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+    });
+    window.addEventListener('keyup', e => {
+        if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = false;
+        if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = false;
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+    });
+
+    // Fetch stock data from free public APIs or generated fallback
+    async function fetchStockData(ticker) {
+        document.getElementById('sys-status').innerText = 'FETCHING API...';
+        try {
+            // Try Yahoo finance public chart endpoint via cors proxy or public free json endpoints
+            let res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`);
+            if (!res.ok) throw new Error('Yahoo API failed');
+            let data = await res.json();
+            let result = data.chart.result[0];
+            let timestamps = result.timestamp;
+            let quotes = result.indicators.quote[0].close;
+            
+            let prices = [];
+            for (let i = 0; i < timestamps.length; i++) {
+                if (quotes[i] !== null && !isNaN(quotes[i])) {
+                    prices.push(quotes[i]);
+                }
+            }
+            if (prices.length < 20) throw new Error('Not enough data');
+            
+            let change = ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100;
+            document.getElementById('hud-change').innerText = (change >= 0 ? '+' : '') + change.toFixed(1) + '%';
+            document.getElementById('hud-change').className = 'market-badge ' + (change >= 0 ? 'green-text' : 'red-text');
+            document.getElementById('sys-status').innerText = 'ONLINE';
+            return prices;
+        } catch (err) {
+            console.warn('API fetch error, falling back to procedural market simulation:', err);
+            document.getElementById('sys-status').innerText = 'SIMULATED';
+            return generateMockStockData(ticker);
+        }
+    }
+
+    function generateMockStockData(ticker) {
+        let prices = [];
+        let p = 100;
+        let seed = 0;
+        for(let i=0; i<ticker.length; i++) seed += ticker.charCodeAt(i);
+        let rng = Math.sin(seed) * 10000;
+        let random = () => { rng = Math.sin(rng) * 10000; return rng - Math.floor(rng); };
+
+        for (let i = 0; i < 150; i++) {
+            let change = (random() - 0.48) * 8;
+            p = Math.max(10, p + change);
+            prices.push(p);
+        }
+        let change = ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100;
+        document.getElementById('hud-change').innerText = (change >= 0 ? '+' : '') + change.toFixed(1) + '%';
+        document.getElementById('hud-change').className = 'market-badge ' + (change >= 0 ? 'green-text' : 'red-text');
+        return prices;
+    }
+
+    async function loadLevel(ticker) {
+        currentTicker = ticker;
+        document.getElementById('hud-ticker').innerHTML = `ASSET: ${ticker} <span class="market-badge" id="hud-change">--%</span>`;
+        let rawPrices = await fetchStockData(ticker);
+        
+        // Normalize prices to canvas terrain coordinates
+        let min = Math.min(...rawPrices);
+        let max = Math.max(...rawPrices);
+        let range = max - min || 1;
+        
+        terrainPoints = [];
+        let stepX = 40;
+        let startX = 200;
+        
+        for (let i = 0; i < rawPrices.length; i++) {
+            let x = startX + i * stepX;
+            // Invert Y because canvas Y goes down
+            let normalizedY = 0.8 * canvas.height - ((rawPrices[i] - min) / range) * (canvas.height * 0.5);
+            terrainPoints.push({ x: x, y: normalizedY, price: rawPrices[i] });
+        }
+        
+        maxDistance = terrainPoints[terrainPoints.length - 1].x - 300;
+        
+        // Reset bike
+        bike.x = 100;
+        bike.y = terrainPoints[0].y - 50;
+        bike.vx = 0;
+        bike.vy = 0;
+        bike.angle = 0;
+        bike.vAngle = 0;
+        distance = 0;
+    }
+
+    // Get terrain height at any x via linear interpolation
+    function getTerrainHeight(x) {
+        if (terrainPoints.length === 0) return canvas.height / 2;
+        if (x <= terrainPoints[0].x) return terrainPoints[0].y;
+        if (x >= terrainPoints[terrainPoints.length - 1].x) return terrainPoints[terrainPoints.length - 1].y;
+
+        for (let i = 0; i < terrainPoints.length - 1; i++) {
+            let p1 = terrainPoints[i];
+            let p2 = terrainPoints[i+1];
+            if (x >= p1.x && x <= p2.x) {
+                let t = (x - p1.x) / (p2.x - p1.x);
+                return p1.y + t * (p2.y - p1.y);
+            }
+        }
+        return canvas.height / 2;
+    }
+
+    function getTerrainSlope(x) {
+        let h1 = getTerrainHeight(x - 2);
+        let h2 = getTerrainHeight(x + 2);
+        return (h2 - h1) / 4;
+    }
+
+    // Game loop
+    function update() {
+        if (gameState !== 'PLAYING') return;
+
+        // Physics controls
+        if (keys.up) {
+            bike.vx += Math.cos(bike.angle) * bike.enginePower;
+            bike.vy += Math.sin(bike.angle) * bike.enginePower;
+        }
+        if (keys.down) {
+            bike.vx -= Math.cos(bike.angle) * bike.braking;
+        }
+        if (keys.left) {
+            bike.vAngle -= 0.005;
+        }
+        if (keys.right) {
+            bike.vAngle += 0.005;
+        }
+
+        // Gravity & Air
+        bike.vy += bike.gravity;
+        bike.vx *= bike.airResistance;
+        bike.vy *= bike.airResistance;
+
+        bike.x += bike.vx;
+        bike.y += bike.vy;
+        bike.angle += bike.vAngle;
+        bike.vAngle *= 0.92;
+
+        // Terrain collision
+        let groundY = getTerrainHeight(bike.x);
+        if (bike.y >= groundY - bike.radius) {
+            bike.y = groundY - bike.radius;
+            
+            // Align with slope
+            let slope = getTerrainSlope(bike.x);
+            let targetAngle = Math.atan(slope);
+            
+            // Blend angle
+            bike.angle = bike.angle * 0.8 + targetAngle * 0.2;
+            bike.vAngle *= 0.2;
+
+            // Ground friction & acceleration
+            let slopeFactor = -Math.sin(targetAngle) * 0.4;
+            bike.vx += slopeFactor;
+            bike.vx *= bike.friction;
+
+            // Jump / Bounce off ground if moving fast upwards
+            if (keys.up && bike.vy > 0) {
+                bike.vy = -6;
+            }
+        }
+
+        // Update HUD
+        distance = Math.max(0, Math.floor(bike.x - 100));
+        document.getElementById('hud-score').innerText = `DIST: ${distance}m`;
+        let speedMph = Math.floor(Math.sqrt(bike.vx * bike.vx + bike.vy * bike.vy) * 3);
+        document.getElementById('hud-speed').innerText = `SPEED: ${speedMph} MPH`;
+
+        // Check Crash (Flip over or extreme angle)
+        if (Math.abs(bike.angle) > 1.45 && bike.y >= groundY - bike.radius - 5) {
+            triggerGameOver("MARKET CRASH! Dirtbike flipped on a bearish volatility spike.");
+        }
+
+        // Check Win (Reached end of stock chart)
+        if (bike.x >= terrainPoints[terrainPoints.length - 1].x - 50) {
+            triggerWin("TO THE MOON! Successfully rode the stock chart to present day!");
+        }
+
+        // Camera follow bike (virtual scroll offset can be added if needed, or keep canvas wide)
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (terrainPoints.length === 0) return;
+
+        // Camera offset to center on bike
+        let cameraX = bike.x - canvas.width * 0.3;
+        ctx.save();
+        ctx.translate(-cameraX, 0);
+
+        // Draw Grid Lines (Retro Terminal Style)
+        ctx.strokeStyle = '#002211';
+        ctx.lineWidth = 1;
+        for (let x = Math.floor(cameraX / 100) * 100; x < cameraX + canvas.width + 200; x += 100) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 100) {
+            ctx.beginPath();
+            ctx.moveTo(cameraX, y);
+            ctx.lineTo(cameraX + canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Draw Stock Chart Terrain Fill & Line
+        ctx.beginPath();
+        ctx.moveTo(terrainPoints[0].x, canvas.height);
+        for (let p of terrainPoints) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.lineTo(terrainPoints[terrainPoints.length - 1].x, canvas.height);
+        ctx.closePath();
+
+        let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, 'rgba(0, 255, 102, 0.2)');
+        gradient.addColorStop(1, 'rgba(0, 20, 5, 0.9)');
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Terrain Stock Line
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00ff66';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(terrainPoints[0].x, terrainPoints[0].y);
+        for (let p of terrainPoints) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Draw Finish Line (Present Day)
+        let endPoint = terrainPoints[terrainPoints.length - 1];
+        ctx.fillStyle = '#ff3333';
+        ctx.fillRect(endPoint.x - 5, endPoint.y - 150, 10, 150);
+        ctx.fillStyle = '#00ff66';
+        ctx.font = '16px "Share Tech Mono", monospace';
+        ctx.fillText('TODAY (PRESENT)', endPoint.x - 60, endPoint.y - 160);
+
+        // Draw Dirtbike
+        ctx.save();
+        ctx.translate(bike.x, bike.y);
+        ctx.rotate(bike.angle);
+
+        // Bike body (Retro green & black wireframe)
+        ctx.strokeStyle = '#00ff66';
+        ctx.fillStyle = '#051105';
+        ctx.lineWidth = 3;
+
+        // Frame
+        ctx.beginPath();
+        ctx.rect(-25, -15, 50, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        // Rider Head & Body
+        ctx.fillStyle = '#ff3333';
+        ctx.beginPath();
+        ctx.arc(0, -28, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Wheels
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(-22, 12, bike.radius, 0, Math.PI * 2);
+        ctx.arc(22, 12, bike.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Wheel Spokes
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-22, 12 - bike.radius); ctx.lineTo(-22, 12 + bike.radius);
+        ctx.moveTo(-22 - bike.radius, 12); ctx.lineTo(-22 + bike.radius, 12);
+        ctx.moveTo(22, 12 - bike.radius); ctx.lineTo(22, 12 + bike.radius);
+        ctx.moveTo(22 - bike.radius, 12); ctx.lineTo(22 + bike.radius, 12);
+        ctx.stroke();
+
+        ctx.restore();
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        update();
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+
+    function triggerGameOver(msg) {
+        gameState = 'GAMEOVER';
+        document.getElementById('go-title').innerText = 'MARKET CRASH!';
+        document.getElementById('go-title').className = 'red-text';
+        document.getElementById('go-message').innerText = `${msg} Final Distance: ${distance}m`;
+        document.getElementById('gameover-modal').classList.remove('hidden');
+    }
+
+    function triggerWin(msg) {
+        gameState = 'WIN';
+        document.getElementById('go-title').innerText = 'TO THE MOON!';
+        document.getElementById('go-title').className = 'green-text';
+        document.getElementById('go-message').innerText = `${msg} Distance: ${distance}m`;
+        document.getElementById('gameover-modal').classList.remove('hidden');
+    }
+
+    // UI Event Listeners
+    document.getElementById('start-game-btn').addEventListener('click', async () => {
+        document.getElementById('start-modal').classList.add('hidden');
+        await loadLevel(currentTicker);
+        gameState = 'PLAYING';
+    });
+
+    document.getElementById('restart-game-btn').addEventListener('click', async () => {
+        document.getElementById('gameover-modal').classList.add('hidden');
+        await loadLevel(currentTicker);
+        gameState = 'PLAYING';
+    });
+
+    document.getElementById('load-ticker-btn').addEventListener('click', async () => {
+        let t = document.getElementById('ticker-input').value.trim().toUpperCase();
+        if (t) {
+            currentTicker = t;
+            await loadLevel(currentTicker);
+            gameState = 'PLAYING';
+        }
+    });
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            let t = btn.getAttribute('data-ticker');
+            document.getElementById('ticker-input').value = t;
+            currentTicker = t;
+            await loadLevel(currentTicker);
+            gameState = 'PLAYING';
+        });
+    });
+</script>
+
+</body>
+</html>
